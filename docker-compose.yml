@@ -1,8 +1,42 @@
 version: '3.8'
 
 services:
-  secure-dashboard:
+  frontend:
     build: .
     ports:
       - "8080:80"
+    depends_on:
+      - backend
     restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      - DATABASE_URL=postgres://dashboard:dashboard@postgres:5432/dashboard?sslmode=disable
+      - CACHE_SIZE=5
+      - RATE_LIMIT=10
+      - PORT=8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8081"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=dashboard
+      - POSTGRES_PASSWORD=dashboard
+      - POSTGRES_DB=dashboard
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

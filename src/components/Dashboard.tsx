@@ -115,30 +115,6 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
           </div>
         ) : (
           <div className="space-y-2">
-            {sortedGroups.map((group, index) => (
-              <GroupCard
-                key={group.id}
-                group={group}
-                groupIndex={index}
-                isEditMode={isEditMode}
-                onOpenAll={() => handleOpenAll(group.links)}
-                onDeleteGroup={() => deleteGroup(group.id)}
-                onUpdateGroup={(updates) => updateGroup(group.id, updates)}
-                onDeleteLink={(linkId) => deleteLink(linkId, group.id)}
-                onUpdateLink={(linkId, updates) =>
-                  updateLink(linkId, group.id, updates)
-                }
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={handleDragOver}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                getDragItem={getDragItem}
-                onMoveLink={moveLink}
-                onMoveGroup={moveGroup}
-              />
-            ))}
-
             {data.rootLinks.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-4">
@@ -179,6 +155,30 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
                 </div>
               </div>
             )}
+
+            {sortedGroups.map((group, index) => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                groupIndex={index}
+                isEditMode={isEditMode}
+                onOpenAll={() => handleOpenAll(group.links)}
+                onDeleteGroup={() => deleteGroup(group.id)}
+                onUpdateGroup={(updates) => updateGroup(group.id, updates)}
+                onDeleteLink={(linkId) => deleteLink(linkId, group.id)}
+                onUpdateLink={(linkId, updates) =>
+                  updateLink(linkId, group.id, updates)
+                }
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                getDragItem={getDragItem}
+                onMoveLink={moveLink}
+                onMoveGroup={moveGroup}
+              />
+            ))}
           </div>
         )}
       </main>
@@ -210,6 +210,13 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
         password={password}
         onLogout={onLogout}
         onImport={handleImport}
+        localOnly={data.settings.localOnly}
+        onLocalOnlyChange={(value) => {
+          onUpdate({
+            ...data,
+            settings: { ...data.settings, localOnly: value }
+          });
+        }}
       />
     </div>
   );

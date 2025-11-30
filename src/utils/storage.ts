@@ -1,26 +1,71 @@
 import { generateStorageKey, encryptData, decryptData } from './crypto';
+import { fetchDashboard as fetchFromBackend, saveDashboardToBackend } from './api';
 import type { DashboardData } from '../types';
+
+const SETTINGS_KEY = 'dashboard_settings';
+
+function getStoredSettings(): { localOnly: boolean } | null {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSettings(settings: { localOnly: boolean }): void {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
 
 export async function saveDashboard(data: DashboardData, password: string): Promise<void> {
   const storageKey = await generateStorageKey(password);
   const encrypted = await encryptData(data, password);
+
   localStorage.setItem(`dashboard_${storageKey}`, encrypted);
+  saveSettings({ localOnly: data.settings.localOnly });
+
+  if (!data.settings.localOnly) {
+    await saveDashboardToBackend(storageKey, encrypted);
+  }
 }
 
 export async function loadDashboard(password: string): Promise<DashboardData | null> {
   const storageKey = await generateStorageKey(password);
-  const encrypted = localStorage.getItem(`dashboard_${storageKey}`);
 
-  if (!encrypted) {
-    return null;
+  const localData = localStorage.getItem(`dashboard_${storageKey}`);
+  if (localData) {
+    return decryptData(localData, password);
   }
 
-  return decryptData(encrypted, password);
+  const settings = getStoredSettings();
+  if (!settings?.localOnly) {
+    const backendData = await fetchFromBackend(storageKey);
+    if (backendData) {
+      const decrypted = await decryptData(backendData, password);
+      if (decrypted) {
+        localStorage.setItem(`dashboard_${storageKey}`, backendData);
+        return decrypted;
+      }
+    }
+  }
+
+  return null;
 }
 
 export async function dashboardExists(password: string): Promise<boolean> {
   const storageKey = await generateStorageKey(password);
-  return localStorage.getItem(`dashboard_${storageKey}`) !== null;
+
+  if (localStorage.getItem(`dashboard_${storageKey}`) !== null) {
+    return true;
+  }
+
+  const settings = getStoredSettings();
+  if (!settings?.localOnly) {
+    const backendData = await fetchFromBackend(storageKey);
+    return backendData !== null;
+  }
+
+  return false;
 }
 
 export function createEmptyDashboard(): DashboardData {
@@ -29,7 +74,8 @@ export function createEmptyDashboard(): DashboardData {
     groups: [],
     rootLinks: [],
     settings: {
-      theme: 'dark'
+      theme: 'dark',
+      localOnly: false,
     }
   };
 }

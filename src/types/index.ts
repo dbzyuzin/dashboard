@@ -21,6 +21,7 @@ export interface DashboardData {
   rootLinks: Link[];
   settings: {
     theme: 'dark';
+    localOnly: boolean;
   };
 }
 

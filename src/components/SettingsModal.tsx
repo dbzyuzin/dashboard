@@ -9,6 +9,8 @@ interface SettingsModalProps {
   password: string;
   onLogout: () => void;
   onImport: (data: DashboardData) => void;
+  localOnly: boolean;
+  onLocalOnlyChange: (value: boolean) => void;
 }
 
 export function SettingsModal({
@@ -17,6 +19,8 @@ export function SettingsModal({
   password,
   onLogout,
   onImport,
+  localOnly,
+  onLocalOnlyChange,
 }: SettingsModalProps) {
   const [importPassword, setImportPassword] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -137,6 +141,26 @@ export function SettingsModal({
                 <p className="text-danger text-sm">{importError}</p>
               )}
             </form>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-text-secondary mb-2">Хранение данных</h3>
+            <label className="flex items-center justify-between p-3 bg-bg-tertiary border border-border rounded-lg cursor-pointer hover:bg-border transition-colors">
+              <span className="text-text-primary text-sm">Только локальное хранение</span>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={localOnly}
+                  onChange={(e) => onLocalOnlyChange(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-10 h-6 bg-bg-primary border border-border rounded-full peer-checked:bg-accent transition-colors" />
+                <div className="absolute left-1 top-1 w-4 h-4 bg-text-muted rounded-full transition-transform peer-checked:translate-x-4 peer-checked:bg-white" />
+              </div>
+            </label>
+            <p className="text-text-muted text-xs mt-1">
+              Если включено, данные не синхронизируются с сервером
+            </p>
           </div>
 
           <div className="pt-4 border-t border-border">
