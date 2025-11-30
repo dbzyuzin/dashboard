@@ -1,26 +1,19 @@
 version: '3.8'
 
 services:
-  frontend:
-    build: .
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  backend:
-    build: ./backend
+      - "8080:8080"
     environment:
       - DATABASE_URL=postgres://dashboard:dashboard@postgres:5432/dashboard?sslmode=disable
       - CACHE_SIZE=5
       - RATE_LIMIT=10
-      - PORT=8081
     depends_on:
       postgres:
         condition: service_healthy
-    expose:
-      - "8081"
     restart: unless-stopped
 
   postgres:

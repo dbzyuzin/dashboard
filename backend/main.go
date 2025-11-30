@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +17,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+//go:embed static/*
+var staticFiles embed.FS
 
 type Config struct {
 	DatabaseURL string
@@ -29,7 +36,7 @@ func loadConfig() Config {
 		RateLimit:   10,
 	}
 	if cfg.Port == "" {
-		cfg.Port = "8081"
+		cfg.Port = "8080"
 	}
 	if v := os.Getenv("CACHE_SIZE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -217,9 +224,8 @@ func (s *Server) handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := make([]byte, r.ContentLength)
-	_, err := r.Body.Read(body)
-	if err != nil && err.Error() != "EOF" {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		http.Error(w, "failed to read body", http.StatusBadRequest)
 		return
 	}
@@ -255,6 +261,80 @@ func migrateDB(ctx context.Context, db *pgxpool.Pool) error {
 	return err
 }
 
+func spaHandler(staticFS fs.FS) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+
+		file, err := staticFS.Open(path)
+		if err != nil {
+			file, err = staticFS.Open("index.html")
+			if err != nil {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			path = "index.html"
+		}
+		defer file.Close()
+
+		stat, err := file.Stat()
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+
+		if stat.IsDir() {
+			file, err = staticFS.Open(path + "/index.html")
+			if err != nil {
+				file, err = staticFS.Open("index.html")
+				if err != nil {
+					http.Error(w, "not found", http.StatusNotFound)
+					return
+				}
+			}
+			defer file.Close()
+		}
+
+		content, err := io.ReadAll(file)
+		if err != nil {
+			http.Error(w, "error reading file", http.StatusInternalServerError)
+			return
+		}
+
+		contentType := "application/octet-stream"
+		switch {
+		case strings.HasSuffix(path, ".html"):
+			contentType = "text/html; charset=utf-8"
+		case strings.HasSuffix(path, ".css"):
+			contentType = "text/css; charset=utf-8"
+		case strings.HasSuffix(path, ".js"):
+			contentType = "application/javascript; charset=utf-8"
+		case strings.HasSuffix(path, ".json"):
+			contentType = "application/json; charset=utf-8"
+		case strings.HasSuffix(path, ".png"):
+			contentType = "image/png"
+		case strings.HasSuffix(path, ".jpg"), strings.HasSuffix(path, ".jpeg"):
+			contentType = "image/jpeg"
+		case strings.HasSuffix(path, ".svg"):
+			contentType = "image/svg+xml"
+		case strings.HasSuffix(path, ".ico"):
+			contentType = "image/x-icon"
+		case strings.HasSuffix(path, ".woff"):
+			contentType = "font/woff"
+		case strings.HasSuffix(path, ".woff2"):
+			contentType = "font/woff2"
+		}
+
+		w.Header().Set("Content-Type", contentType)
+		if strings.HasSuffix(path, ".js") || strings.HasSuffix(path, ".css") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		}
+		w.Write(content)
+	}
+}
+
 func main() {
 	cfg := loadConfig()
 
@@ -277,14 +357,23 @@ func main() {
 	rl := NewRateLimiter(cfg.RateLimit)
 	server := NewServer(db, cache, rl)
 
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		log.Fatalf("failed to get static fs: %v", err)
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(server.rateLimitMiddleware)
 
-	r.Get("/api/health", server.handleHealth)
-	r.Get("/api/data/{hash}", server.handleGet)
-	r.Post("/api/data/{hash}", server.handlePost)
+	r.Route("/api", func(r chi.Router) {
+		r.Use(server.rateLimitMiddleware)
+		r.Get("/health", server.handleHealth)
+		r.Get("/data/{hash}", server.handleGet)
+		r.Post("/data/{hash}", server.handlePost)
+	})
+
+	r.Handle("/*", spaHandler(staticFS))
 
 	log.Printf("Starting server on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {

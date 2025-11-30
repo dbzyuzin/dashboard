@@ -1,30 +1,24 @@
-# Build stage
-FROM node:20-alpine AS builder
-
+# Stage 1: Build frontend
+FROM node:20-alpine AS frontend
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
-
-# Copy source files
 COPY . .
-
-# Build application
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Stage 2: Build backend with embedded frontend
+FROM golang:1.22-alpine AS backend
+WORKDIR /app
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+COPY backend/*.go ./
+COPY --from=frontend /app/dist ./static/
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server .
 
-# Copy built files
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Stage 3: Final minimal image
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+WORKDIR /app
+COPY --from=backend /app/server .
+EXPOSE 8080
+CMD ["./server"]
