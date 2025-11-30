@@ -21,6 +21,8 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
   const [showAddLink, setShowAddLink] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(data.title || 'Dashboard');
 
   const {
     addGroup,
@@ -59,6 +61,15 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
     await onUpdate(importedData);
   };
 
+  const handleTitleSave = async () => {
+    const trimmed = titleValue.trim() || 'Dashboard';
+    setTitleValue(trimmed);
+    setIsEditingTitle(false);
+    if (trimmed !== data.title) {
+      await onUpdate({ ...data, title: trimmed });
+    }
+  };
+
   const handleRootLinksDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -82,7 +93,34 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
     <div className={`min-h-screen bg-bg-primary ${isEditMode ? 'pb-24' : ''}`}>
       <header className="sticky top-0 bg-bg-primary/95 backdrop-blur border-b border-border z-30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-text-primary">Dashboard</h1>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTitleSave();
+                if (e.key === 'Escape') {
+                  setTitleValue(data.title || 'Dashboard');
+                  setIsEditingTitle(false);
+                }
+              }}
+              autoFocus
+              className="text-xl font-semibold text-text-primary bg-bg-secondary px-3 py-1 rounded-lg
+                       border border-border focus:border-accent focus:outline-none"
+            />
+          ) : (
+            <h1
+              onClick={() => isEditMode && setIsEditingTitle(true)}
+              className={`text-xl font-semibold text-text-primary ${
+                isEditMode ? 'cursor-pointer hover:bg-bg-secondary px-3 py-1 -mx-3 -my-1 rounded-lg transition-colors' : ''
+              }`}
+              title={isEditMode ? 'Нажмите для редактирования' : undefined}
+            >
+              {data.title || 'Dashboard'}
+            </h1>
+          )}
 
           <div className="flex items-center gap-3">
             <button

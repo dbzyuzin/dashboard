@@ -17,6 +17,7 @@ export interface LinkGroup {
 
 export interface DashboardData {
   version: 1;
+  title?: string;
   groups: LinkGroup[];
   rootLinks: Link[];
   settings: {
