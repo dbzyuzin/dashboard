@@ -150,9 +150,14 @@ export function GroupCard({
         {!group.isCollapsed && group.links.length > 0 && (
           <button
             onClick={onOpenAll}
-            className="text-xs text-accent hover:text-accent-hover transition-colors"
+            className="text-text-muted hover:text-accent transition-colors"
+            title="Открыть все ссылки"
           >
-            Открыть все
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+              <path d="M14 9l3 3-3 3" />
+            </svg>
           </button>
         )}
 

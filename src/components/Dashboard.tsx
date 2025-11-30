@@ -44,7 +44,14 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
 
   const handleOpenAll = (links: Link[]) => {
     links.forEach((link) => {
-      window.open(link.url, '_blank', 'noopener,noreferrer');
+      const a = document.createElement('a');
+      a.href = link.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     });
   };
 
