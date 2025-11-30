@@ -1,41 +1,44 @@
 import { useState } from 'react';
 import type { LinkGroup, Link } from '../types';
+import type { DragItem } from '../hooks/useDragAndDrop';
 import { LinkItem } from './LinkItem';
 
 interface GroupCardProps {
   group: LinkGroup;
+  groupIndex: number;
   isEditMode: boolean;
   onOpenAll: () => void;
   onDeleteGroup: () => void;
   onUpdateGroup: (updates: Partial<LinkGroup>) => void;
   onDeleteLink: (linkId: string) => void;
   onUpdateLink: (linkId: string, updates: Partial<Link>) => void;
-  onDragStartGroup: (e: React.DragEvent) => void;
-  onDragEndGroup: (e: React.DragEvent) => void;
-  onDragStartLink: (e: React.DragEvent, linkId: string) => void;
-  onDragEndLink: (e: React.DragEvent) => void;
+  onDragStart: (e: React.DragEvent, item: DragItem) => void;
+  onDragEnd: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragEnter: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent, targetIndex: number) => void;
+  getDragItem: (e: React.DragEvent) => DragItem | null;
+  onMoveLink: (linkId: string, fromGroupId: string | null, toGroupId: string | null, toIndex: number) => void;
+  onMoveGroup: (groupId: string, toIndex: number) => void;
 }
 
 export function GroupCard({
   group,
+  groupIndex,
   isEditMode,
   onOpenAll,
   onDeleteGroup,
   onUpdateGroup,
   onDeleteLink,
   onUpdateLink,
-  onDragStartGroup,
-  onDragEndGroup,
-  onDragStartLink,
-  onDragEndLink,
+  onDragStart,
+  onDragEnd,
   onDragOver,
   onDragEnter,
   onDragLeave,
-  onDrop,
+  getDragItem,
+  onMoveLink,
+  onMoveGroup,
 }: GroupCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(group.name);
@@ -56,16 +59,51 @@ export function GroupCard({
     }
   };
 
+  const handleHeaderDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).classList.remove('drag-over');
+
+    const item = getDragItem(e);
+    if (!item) return;
+
+    if (item.type === 'group' && item.id !== group.id) {
+      onMoveGroup(item.id, groupIndex);
+    } else if (item.type === 'link') {
+      onMoveLink(item.id, item.sourceGroupId, group.id, group.links.length);
+    }
+  };
+
+  const handleLinksDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).classList.remove('drag-over');
+
+    const item = getDragItem(e);
+    if (!item || item.type !== 'link') return;
+
+    const isSameGroup = item.sourceGroupId === group.id;
+    const adjustedIndex = isSameGroup && group.links.findIndex(l => l.id === item.id) < targetIndex
+      ? targetIndex - 1
+      : targetIndex;
+
+    onMoveLink(item.id, item.sourceGroupId, group.id, adjustedIndex);
+  };
+
   return (
-    <div
-      className="bg-bg-secondary border border-border rounded-lg overflow-hidden"
-      draggable={isEditMode}
-      onDragStart={onDragStartGroup}
-      onDragEnd={onDragEndGroup}
-    >
+    <div className="mb-8">
       <div
-        className="flex items-center gap-2 p-3 border-b border-border"
-        style={{ borderLeftColor: group.color, borderLeftWidth: '3px' }}
+        className="flex items-center gap-3 mb-4 group"
+        draggable={isEditMode}
+        onDragStart={(e) => {
+          e.stopPropagation();
+          onDragStart(e, { type: 'group', id: group.id, sourceGroupId: null });
+        }}
+        onDragEnd={onDragEnd}
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDrop={handleHeaderDrop}
       >
         {isEditMode && (
           <span className="cursor-grab text-text-muted hover:text-text-secondary">
@@ -75,10 +113,15 @@ export function GroupCard({
 
         <button
           onClick={() => onUpdateGroup({ isCollapsed: !group.isCollapsed })}
-          className="text-text-secondary hover:text-text-primary transition-colors"
+          className="text-text-muted hover:text-text-secondary transition-colors text-xs"
         >
           {group.isCollapsed ? '▶' : '▼'}
         </button>
+
+        <div
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: group.color }}
+        />
 
         {isEditingName ? (
           <input
@@ -87,27 +130,36 @@ export function GroupCard({
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleSaveName}
             onKeyDown={handleKeyDown}
-            className="flex-1 bg-bg-tertiary text-text-primary px-2 py-0.5 rounded
-                     border border-border focus:border-accent focus:outline-none"
+            className="flex-1 bg-bg-tertiary text-text-primary px-2 py-1 rounded
+                     border border-border focus:border-accent focus:outline-none text-lg"
             autoFocus
           />
         ) : (
-          <h3
-            className={`flex-1 font-medium text-text-primary ${
+          <h2
+            className={`flex-1 text-lg font-medium text-text-primary ${
               isEditMode ? 'cursor-pointer hover:text-accent' : ''
             }`}
             onClick={() => isEditMode && setIsEditingName(true)}
           >
             {group.name}
-          </h3>
+          </h2>
         )}
 
         <span className="text-text-muted text-sm">{group.links.length}</span>
 
+        {!group.isCollapsed && group.links.length > 0 && (
+          <button
+            onClick={onOpenAll}
+            className="text-xs text-accent hover:text-accent-hover transition-colors"
+          >
+            Открыть все
+          </button>
+        )}
+
         {isEditMode && (
           <button
             onClick={onDeleteGroup}
-            className="text-text-muted hover:text-danger transition-colors"
+            className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger transition-all"
             title="Удалить группу"
           >
             ✕
@@ -117,50 +169,41 @@ export function GroupCard({
 
       {!group.isCollapsed && (
         <div
-          className="p-2 min-h-[40px]"
+          className="min-h-[80px]"
           onDragOver={onDragOver}
           onDragEnter={onDragEnter}
           onDragLeave={onDragLeave}
-          onDrop={(e) => onDrop(e, group.links.length)}
+          onDrop={(e) => handleLinksDrop(e, group.links.length)}
         >
           {group.links.length === 0 ? (
-            <p className="text-text-muted text-sm text-center py-2">
-              {isEditMode ? 'Перетащите ссылки сюда' : 'Нет ссылок'}
-            </p>
+            <div className="flex items-center justify-center h-20 border-2 border-dashed border-border rounded-xl">
+              <p className="text-text-muted text-sm">
+                {isEditMode ? 'Перетащите ссылки сюда' : 'Нет ссылок'}
+              </p>
+            </div>
           ) : (
-            group.links.map((link, index) => (
-              <div
-                key={link.id}
-                onDragOver={onDragOver}
-                onDrop={(e) => {
-                  e.stopPropagation();
-                  onDrop(e, index);
-                }}
-              >
-                <LinkItem
-                  link={link}
-                  isEditMode={isEditMode}
-                  onDelete={() => onDeleteLink(link.id)}
-                  onUpdate={(updates) => onUpdateLink(link.id, updates)}
-                  onDragStart={(e) => onDragStartLink(e, link.id)}
-                  onDragEnd={onDragEndLink}
-                />
-              </div>
-            ))
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {group.links.map((link, index) => (
+                <div
+                  key={link.id}
+                  onDragOver={onDragOver}
+                  onDrop={(e) => handleLinksDrop(e, index)}
+                >
+                  <LinkItem
+                    link={link}
+                    isEditMode={isEditMode}
+                    onDelete={() => onDeleteLink(link.id)}
+                    onUpdate={(updates) => onUpdateLink(link.id, updates)}
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      onDragStart(e, { type: 'link', id: link.id, sourceGroupId: group.id });
+                    }}
+                    onDragEnd={onDragEnd}
+                  />
+                </div>
+              ))}
+            </div>
           )}
-        </div>
-      )}
-
-      {!group.isCollapsed && group.links.length > 0 && (
-        <div className="px-3 pb-3">
-          <button
-            onClick={onOpenAll}
-            className="w-full py-1.5 text-sm text-accent hover:text-accent-hover
-                     border border-border hover:border-accent rounded
-                     transition-colors"
-          >
-            Открыть все ({group.links.length})
-          </button>
         </div>
       )}
     </div>

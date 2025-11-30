@@ -29,9 +29,3 @@ export interface AppState {
   isEditMode: boolean;
   dashboardData: DashboardData | null;
 }
-
-export interface DragData {
-  type: 'link' | 'group';
-  id: string;
-  sourceGroupId: string | null;
-}

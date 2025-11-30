@@ -30,7 +30,7 @@ export function LinkItem({
   })();
 
   const faviconUrl = domain
-    ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+    ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
     : undefined;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -58,61 +58,74 @@ export function LinkItem({
 
   return (
     <div
-      className="group flex items-center gap-2 py-1.5 px-2 rounded hover:bg-bg-tertiary transition-colors"
+      className={`group relative flex flex-col items-center p-4 rounded-xl
+                bg-bg-secondary hover:bg-bg-tertiary border border-border
+                hover:border-accent/50 transition-all cursor-pointer
+                ${isEditMode ? 'hover:shadow-lg' : ''}`}
       draggable={isEditMode}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
       {isEditMode && (
-        <span className="cursor-grab text-text-muted hover:text-text-secondary">
-          ⠿
-        </span>
+        <>
+          <span className="absolute top-2 left-2 cursor-grab text-text-muted hover:text-text-secondary">
+            ⠿
+          </span>
+          <button
+            onClick={onDelete}
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100
+                     text-text-muted hover:text-danger transition-opacity"
+            title="Удалить"
+          >
+            ✕
+          </button>
+        </>
       )}
 
-      {faviconUrl && (
-        <img
-          src={faviconUrl}
-          alt=""
-          className="w-4 h-4 flex-shrink-0"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      )}
+      <a
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleClick}
+        className="flex flex-col items-center gap-3 w-full"
+      >
+        <div className="w-12 h-12 rounded-xl bg-bg-tertiary flex items-center justify-center overflow-hidden">
+          {faviconUrl ? (
+            <img
+              src={faviconUrl}
+              alt=""
+              className="w-8 h-8"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).parentElement!.innerHTML =
+                  `<span class="text-2xl text-text-muted">${link.title[0]?.toUpperCase() || '?'}</span>`;
+              }}
+            />
+          ) : (
+            <span className="text-2xl text-text-muted">
+              {link.title[0]?.toUpperCase() || '?'}
+            </span>
+          )}
+        </div>
 
-      {isEditing ? (
-        <input
-          type="text"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          className="flex-1 bg-bg-tertiary text-text-primary text-sm px-2 py-0.5 rounded
-                   border border-border focus:border-accent focus:outline-none"
-          autoFocus
-        />
-      ) : (
-        <a
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleClick}
-          className="flex-1 text-sm text-text-primary hover:text-accent truncate transition-colors"
-        >
-          {link.title}
-        </a>
-      )}
-
-      {isEditMode && !isEditing && (
-        <button
-          onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger
-                   transition-opacity text-sm"
-          title="Удалить"
-        >
-          ✕
-        </button>
-      )}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full bg-bg-tertiary text-text-primary text-sm text-center px-2 py-1 rounded
+                     border border-border focus:border-accent focus:outline-none"
+            autoFocus
+          />
+        ) : (
+          <span className="text-sm text-text-primary text-center line-clamp-2 w-full">
+            {link.title}
+          </span>
+        )}
+      </a>
     </div>
   );
 }

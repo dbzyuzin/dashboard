@@ -39,7 +39,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
     handleDragOver,
     handleDragEnter,
     handleDragLeave,
-    handleDrop,
+    getDragItem,
   } = useDragAndDrop();
 
   const handleOpenAll = (links: Link[]) => {
@@ -52,18 +52,35 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
     await onUpdate(importedData);
   };
 
+  const handleRootLinksDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).classList.remove('drag-over');
+
+    const item = getDragItem(e);
+    if (!item || item.type !== 'link') return;
+
+    const isSameArea = item.sourceGroupId === null;
+    const currentIndex = data.rootLinks.findIndex(l => l.id === item.id);
+    const adjustedIndex = isSameArea && currentIndex < targetIndex
+      ? targetIndex - 1
+      : targetIndex;
+
+    moveLink(item.id, item.sourceGroupId, null, adjustedIndex);
+  };
+
   const sortedGroups = [...data.groups].sort((a, b) => a.order - b.order);
 
   return (
     <div className={`min-h-screen bg-bg-primary ${isEditMode ? 'pb-24' : ''}`}>
       <header className="sticky top-0 bg-bg-primary/95 backdrop-blur border-b border-border z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-text-primary">Secure Dashboard</h1>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-text-primary">Dashboard</h1>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsEditMode(!isEditMode)}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isEditMode
                   ? 'bg-accent text-white'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
@@ -73,8 +90,8 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
             </button>
             <button
               onClick={() => setShowSettings(true)}
-              className="px-3 py-1.5 text-text-secondary hover:text-text-primary
-                       hover:bg-bg-tertiary rounded text-sm transition-colors"
+              className="px-4 py-2 text-text-secondary hover:text-text-primary
+                       hover:bg-bg-tertiary rounded-lg text-sm transition-colors"
             >
               Настройки
             </button>
@@ -82,83 +99,69 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {sortedGroups.length === 0 && data.rootLinks.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-text-secondary mb-4">Ваш дашборд пуст</p>
+          <div className="text-center py-16">
+            <p className="text-text-secondary text-lg mb-6">Ваш дашборд пуст</p>
             {!isEditMode && (
               <button
                 onClick={() => setIsEditMode(true)}
-                className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg
-                         transition-colors"
+                className="px-6 py-3 bg-accent hover:bg-accent-hover text-white rounded-xl
+                         transition-colors font-medium"
               >
                 Начать добавлять
               </button>
             )}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {sortedGroups.map((group, index) => (
-                <div
-                  key={group.id}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) =>
-                    handleDrop(e, null, index, moveLink, moveGroup)
-                  }
-                >
-                  <GroupCard
-                    group={group}
-                    isEditMode={isEditMode}
-                    onOpenAll={() => handleOpenAll(group.links)}
-                    onDeleteGroup={() => deleteGroup(group.id)}
-                    onUpdateGroup={(updates) => updateGroup(group.id, updates)}
-                    onDeleteLink={(linkId) => deleteLink(linkId, group.id)}
-                    onUpdateLink={(linkId, updates) =>
-                      updateLink(linkId, group.id, updates)
-                    }
-                    onDragStartGroup={(e) =>
-                      handleDragStart(e, 'group', group.id, null)
-                    }
-                    onDragEndGroup={handleDragEnd}
-                    onDragStartLink={(e, linkId) =>
-                      handleDragStart(e, 'link', linkId, group.id)
-                    }
-                    onDragEndLink={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e, targetIndex) =>
-                      handleDrop(e, group.id, targetIndex, moveLink, moveGroup)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="space-y-2">
+            {sortedGroups.map((group, index) => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                groupIndex={index}
+                isEditMode={isEditMode}
+                onOpenAll={() => handleOpenAll(group.links)}
+                onDeleteGroup={() => deleteGroup(group.id)}
+                onUpdateGroup={(updates) => updateGroup(group.id, updates)}
+                onDeleteLink={(linkId) => deleteLink(linkId, group.id)}
+                onUpdateLink={(linkId, updates) =>
+                  updateLink(linkId, group.id, updates)
+                }
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                getDragItem={getDragItem}
+                onMoveLink={moveLink}
+                onMoveGroup={moveGroup}
+              />
+            ))}
 
             {data.rootLinks.length > 0 && (
-              <div className="mt-6">
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-2 h-2 rounded-full bg-text-muted" />
+                  <h2 className="text-lg font-medium text-text-secondary">
+                    Без группы
+                  </h2>
+                  <span className="text-text-muted text-sm">{data.rootLinks.length}</span>
+                </div>
+
                 <div
-                  className="bg-bg-secondary border border-border rounded-lg p-4"
+                  className="min-h-[80px]"
                   onDragOver={handleDragOver}
                   onDragEnter={handleDragEnter}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) =>
-                    handleDrop(e, null, data.rootLinks.length, moveLink, moveGroup)
-                  }
+                  onDrop={(e) => handleRootLinksDrop(e, data.rootLinks.length)}
                 >
-                  <h3 className="text-text-secondary text-sm font-medium mb-3">
-                    Без группы
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                     {data.rootLinks.map((link, index) => (
                       <div
                         key={link.id}
                         onDragOver={handleDragOver}
-                        onDrop={(e) => {
-                          e.stopPropagation();
-                          handleDrop(e, null, index, moveLink, moveGroup);
-                        }}
+                        onDrop={(e) => handleRootLinksDrop(e, index)}
                       >
                         <LinkItem
                           link={link}
@@ -166,7 +169,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
                           onDelete={() => deleteLink(link.id, null)}
                           onUpdate={(updates) => updateLink(link.id, null, updates)}
                           onDragStart={(e) =>
-                            handleDragStart(e, 'link', link.id, null)
+                            handleDragStart(e, { type: 'link', id: link.id, sourceGroupId: null })
                           }
                           onDragEnd={handleDragEnd}
                         />
@@ -176,7 +179,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </main>
 
