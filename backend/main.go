@@ -114,7 +114,7 @@ func NewRateLimiter(limit int) *RateLimiter {
 	rl := &RateLimiter{
 		requests: make(map[string][]time.Time),
 		limit:    limit,
-		window:   time.Minute,
+		window:   time.Second,
 	}
 	go rl.cleanup()
 	return rl
@@ -145,7 +145,7 @@ func (rl *RateLimiter) Allow(ip string) bool {
 }
 
 func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(5 * time.Second)
 	for range ticker.C {
 		rl.mu.Lock()
 		now := time.Now()
