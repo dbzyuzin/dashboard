@@ -2,19 +2,38 @@ import { generateStorageKey, encryptData, decryptData } from './crypto';
 import { fetchDashboard as fetchFromBackend, saveDashboardToBackend } from './api';
 import type { DashboardData } from '../types';
 
-const SETTINGS_KEY = 'dashboard_settings';
+const LOCAL_ONLY_KEY = 'local_only_dashboards';
 
-function getStoredSettings(): { localOnly: boolean } | null {
+localStorage.removeItem('dashboard_settings');
+
+function getLocalOnlyHashes(): string[] {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(LOCAL_ONLY_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function saveSettings(settings: { localOnly: boolean }): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+function isLocalOnly(hash: string): boolean {
+  return getLocalOnlyHashes().includes(hash);
+}
+
+function setLocalOnly(hash: string, value: boolean): void {
+  const hashes = getLocalOnlyHashes();
+  const index = hashes.indexOf(hash);
+
+  if (value && index === -1) {
+    hashes.push(hash);
+  } else if (!value && index !== -1) {
+    hashes.splice(index, 1);
+  }
+
+  if (hashes.length > 0) {
+    localStorage.setItem(LOCAL_ONLY_KEY, JSON.stringify(hashes));
+  } else {
+    localStorage.removeItem(LOCAL_ONLY_KEY);
+  }
 }
 
 export async function saveDashboard(data: DashboardData, password: string): Promise<void> {
@@ -22,7 +41,7 @@ export async function saveDashboard(data: DashboardData, password: string): Prom
   const encrypted = await encryptData(data, password);
 
   localStorage.setItem(`dashboard_${storageKey}`, encrypted);
-  saveSettings({ localOnly: data.settings.localOnly });
+  setLocalOnly(storageKey, data.settings.localOnly);
 
   if (!data.settings.localOnly) {
     await saveDashboardToBackend(storageKey, encrypted);
@@ -31,9 +50,8 @@ export async function saveDashboard(data: DashboardData, password: string): Prom
 
 export async function loadDashboard(password: string): Promise<DashboardData | null> {
   const storageKey = await generateStorageKey(password);
-  const settings = getStoredSettings();
 
-  if (settings?.localOnly) {
+  if (isLocalOnly(storageKey)) {
     const localData = localStorage.getItem(`dashboard_${storageKey}`);
     if (localData) {
       return decryptData(localData, password);
@@ -46,7 +64,7 @@ export async function loadDashboard(password: string): Promise<DashboardData | n
     const decrypted = await decryptData(backendData, password);
     if (decrypted) {
       localStorage.setItem(`dashboard_${storageKey}`, backendData);
-      saveSettings({ localOnly: decrypted.settings.localOnly });
+      setLocalOnly(storageKey, decrypted.settings.localOnly);
       return decrypted;
     }
   }
@@ -61,9 +79,8 @@ export async function loadDashboard(password: string): Promise<DashboardData | n
 
 export async function dashboardExists(password: string): Promise<boolean> {
   const storageKey = await generateStorageKey(password);
-  const settings = getStoredSettings();
 
-  if (settings?.localOnly) {
+  if (isLocalOnly(storageKey)) {
     return localStorage.getItem(`dashboard_${storageKey}`) !== null;
   }
 
