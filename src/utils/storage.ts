@@ -31,22 +31,29 @@ export async function saveDashboard(data: DashboardData, password: string): Prom
 
 export async function loadDashboard(password: string): Promise<DashboardData | null> {
   const storageKey = await generateStorageKey(password);
+  const settings = getStoredSettings();
+
+  if (settings?.localOnly) {
+    const localData = localStorage.getItem(`dashboard_${storageKey}`);
+    if (localData) {
+      return decryptData(localData, password);
+    }
+    return null;
+  }
+
+  const backendData = await fetchFromBackend(storageKey);
+  if (backendData) {
+    const decrypted = await decryptData(backendData, password);
+    if (decrypted) {
+      localStorage.setItem(`dashboard_${storageKey}`, backendData);
+      saveSettings({ localOnly: decrypted.settings.localOnly });
+      return decrypted;
+    }
+  }
 
   const localData = localStorage.getItem(`dashboard_${storageKey}`);
   if (localData) {
     return decryptData(localData, password);
-  }
-
-  const settings = getStoredSettings();
-  if (!settings?.localOnly) {
-    const backendData = await fetchFromBackend(storageKey);
-    if (backendData) {
-      const decrypted = await decryptData(backendData, password);
-      if (decrypted) {
-        localStorage.setItem(`dashboard_${storageKey}`, backendData);
-        return decrypted;
-      }
-    }
   }
 
   return null;
@@ -54,18 +61,18 @@ export async function loadDashboard(password: string): Promise<DashboardData | n
 
 export async function dashboardExists(password: string): Promise<boolean> {
   const storageKey = await generateStorageKey(password);
+  const settings = getStoredSettings();
 
-  if (localStorage.getItem(`dashboard_${storageKey}`) !== null) {
+  if (settings?.localOnly) {
+    return localStorage.getItem(`dashboard_${storageKey}`) !== null;
+  }
+
+  const backendData = await fetchFromBackend(storageKey);
+  if (backendData !== null) {
     return true;
   }
 
-  const settings = getStoredSettings();
-  if (!settings?.localOnly) {
-    const backendData = await fetchFromBackend(storageKey);
-    return backendData !== null;
-  }
-
-  return false;
+  return localStorage.getItem(`dashboard_${storageKey}`) !== null;
 }
 
 export function createEmptyDashboard(): DashboardData {
