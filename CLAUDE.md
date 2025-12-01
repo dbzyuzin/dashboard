@@ -38,7 +38,7 @@
 # Dev (только frontend)
 npm run dev
 
-# Production (docker)
+# Dev front + backend + dev postgres
 docker-compose up --build
 ```
 
@@ -51,4 +51,3 @@ docker-compose up --build
 ## Правила
 
 - Не пиши лишних комментариев в коде
-- Интерфейс на русском языке
