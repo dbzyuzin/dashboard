@@ -2,12 +2,14 @@ import { useState } from 'react';
 import type { LinkGroup, Link } from '../types';
 import type { DragItem } from '../hooks/useDragAndDrop';
 import { LinkItem } from './LinkItem';
+import { AddButton } from './AddButton';
 
 interface GroupCardProps {
   group: LinkGroup;
   groupIndex: number;
   isEditMode: boolean;
   onOpenAll: () => void;
+  onAddLink: () => void;
   onDeleteGroup: () => void;
   onUpdateGroup: (updates: Partial<LinkGroup>) => void;
   onDeleteLink: (linkId: string) => void;
@@ -27,6 +29,7 @@ export function GroupCard({
   groupIndex,
   isEditMode,
   onOpenAll,
+  onAddLink,
   onDeleteGroup,
   onUpdateGroup,
   onDeleteLink,
@@ -119,7 +122,7 @@ export function GroupCard({
         </button>
 
         <div
-          className="w-2 h-2 rounded-full flex-shrink-0"
+          className="w-2 h-2 rounded-full shrink-0"
           style={{ backgroundColor: group.color }}
         />
 
@@ -146,6 +149,8 @@ export function GroupCard({
         )}
 
         <span className="text-text-muted text-sm">{group.links.length}</span>
+
+        <AddButton onClick={onAddLink} title="Добавить ссылку в группу" />
 
         {!group.isCollapsed && group.links.length > 0 && (
           <button
@@ -183,7 +188,7 @@ export function GroupCard({
           {group.links.length === 0 ? (
             <div className="flex items-center justify-center h-20 border-2 border-dashed border-border rounded-xl">
               <p className="text-text-muted text-sm">
-                {isEditMode ? 'Перетащите ссылки сюда' : 'Нет ссылок'}
+                {isEditMode ? 'Перетащите ссылки сюда' : 'Нет ссылок. Нажмите + в заголовке.'}
               </p>
             </div>
           ) : (

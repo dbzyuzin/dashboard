@@ -6,7 +6,7 @@ import { GroupCard } from './GroupCard';
 import { LinkItem } from './LinkItem';
 import { AddLinkModal } from './AddLinkModal';
 import { AddGroupModal } from './AddGroupModal';
-import { EditModeToolbar } from './EditModeToolbar';
+import { AddButton } from './AddButton';
 import { SettingsModal } from './SettingsModal';
 
 interface DashboardProps {
@@ -18,7 +18,7 @@ interface DashboardProps {
 
 export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps) {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showAddLink, setShowAddLink] = useState(false);
+  const [addLinkTarget, setAddLinkTarget] = useState<{ groupId: string | null } | null>(null);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -90,7 +90,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
   const sortedGroups = [...data.groups].sort((a, b) => a.order - b.order);
 
   return (
-    <div className={`min-h-screen bg-bg-primary ${isEditMode ? 'pb-24' : ''}`}>
+    <div className="min-h-screen bg-bg-primary">
       <header className="sticky top-0 bg-bg-primary/95 backdrop-blur border-b border-border z-30">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {isEditingTitle ? (
@@ -123,6 +123,8 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
           )}
 
           <div className="flex items-center gap-3">
+            <AddButton onClick={() => setAddLinkTarget({ groupId: null })} title="Добавить ссылку" label="Ссылка" />
+            <AddButton onClick={() => setShowAddGroup(true)} title="Добавить группу" label="Группа" />
             <button
               onClick={() => setIsEditMode(!isEditMode)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -148,15 +150,22 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
         {sortedGroups.length === 0 && data.rootLinks.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-text-secondary text-lg mb-6">Ваш дашборд пуст</p>
-            {!isEditMode && (
+            <div className="flex justify-center gap-3">
               <button
-                onClick={() => setIsEditMode(true)}
+                onClick={() => setAddLinkTarget({ groupId: null })}
                 className="px-6 py-3 bg-accent hover:bg-accent-hover text-white rounded-xl
                          transition-colors font-medium"
               >
-                Начать добавлять
+                + Ссылка
               </button>
-            )}
+              <button
+                onClick={() => setShowAddGroup(true)}
+                className="px-6 py-3 bg-bg-tertiary hover:bg-border text-text-primary
+                         border border-border rounded-xl transition-colors font-medium"
+              >
+                + Группа
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">
@@ -168,6 +177,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
                     Без группы
                   </h2>
                   <span className="text-text-muted text-sm">{data.rootLinks.length}</span>
+                  <AddButton onClick={() => setAddLinkTarget({ groupId: null })} title="Добавить ссылку без группы" />
                 </div>
 
                 <div
@@ -208,6 +218,7 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
                 groupIndex={index}
                 isEditMode={isEditMode}
                 onOpenAll={() => handleOpenAll(group.links)}
+                onAddLink={() => setAddLinkTarget({ groupId: group.id })}
                 onDeleteGroup={() => deleteGroup(group.id)}
                 onUpdateGroup={(updates) => updateGroup(group.id, updates)}
                 onDeleteLink={(linkId) => deleteLink(linkId, group.id)}
@@ -228,19 +239,12 @@ export function Dashboard({ data, password, onUpdate, onLogout }: DashboardProps
         )}
       </main>
 
-      {isEditMode && (
-        <EditModeToolbar
-          onAddGroup={() => setShowAddGroup(true)}
-          onAddLink={() => setShowAddLink(true)}
-          onDone={() => setIsEditMode(false)}
-        />
-      )}
-
       <AddLinkModal
-        isOpen={showAddLink}
-        onClose={() => setShowAddLink(false)}
+        isOpen={addLinkTarget !== null}
+        onClose={() => setAddLinkTarget(null)}
         onAdd={addLink}
         groups={data.groups}
+        defaultGroupId={addLinkTarget?.groupId ?? null}
       />
 
       <AddGroupModal

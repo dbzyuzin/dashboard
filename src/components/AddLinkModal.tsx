@@ -6,21 +6,24 @@ interface AddLinkModalProps {
   onClose: () => void;
   onAdd: (link: { title: string; url: string; favicon?: string }, groupId: string | null) => void;
   groups: LinkGroup[];
+  defaultGroupId: string | null;
 }
 
-export function AddLinkModal({ isOpen, onClose, onAdd, groups }: AddLinkModalProps) {
+export function AddLinkModal({ isOpen, onClose, onAdd, groups, defaultGroupId }: AddLinkModalProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [groupId, setGroupId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setGroupId(defaultGroupId ?? '');
+    } else {
       setUrl('');
       setTitle('');
       setGroupId('');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultGroupId]);
 
   const extractDomain = (urlString: string): string | null => {
     try {
